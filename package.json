@@ -1,0 +1,28 @@
+{
+  "name": "auto-find-post-tool-for-website",
+  "version": "1.0.0",
+  "main": "utils/index.js",
+  "scripts": {
+    "start": "node utils/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "axios": "^1.8.4",
+    "cheerio": "^1.0.0",
+    "cron": "^4.3.0",
+    "express": "^5.1.0",
+    "fs": "^0.0.1-security",
+    "index.js": "^0.0.3",
+    "node-cron": "^4.0.5",
+    "node-fetch": "^2.7.0",
+    "pg": "^8.14.1",
+    "puppeteer": "^24.6.1",
+    "uuid": "^11.1.0"
+  }
+}

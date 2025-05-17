@@ -1,0 +1,278 @@
+Here’s the **complete step-by-step Node.js automation plan** for your AI-powered auto-blogging software, including image generation and viral titles:
+
+---
+
+### **1. Initialize Project**
+```bash
+mkdir auto-blogger && cd auto-blogger
+npm init -y
+npm install express axios puppeteer cheerio pg openai @anthropic-ai/sdk fs cron
+```
+
+---
+
+### **2. Fetch Trending Topics**
+#### **Using NewsAPI (Pure JS)**
+```javascript
+// utils/trends.js
+const axios = require('axios');
+
+async function getTrendingTopics() {
+  const response = await axios.get(
+    'https://newsapi.org/v2/top-headlines?country=us&apiKey=YOUR_NEWSAPI_KEY'
+  );
+  return response.data.articles.slice(0, 5).map(article => article.title);
+}
+
+module.exports = { getTrendingTopics };
+```
+
+---
+
+### **3. Generate Viral Title**
+#### **Using GPT-4 Turbo**
+```javascript
+// utils/titles.js
+const OpenAI = require('openai');
+const openai = new OpenAI(process.env.OPENAI_KEY);
+
+async function generateViralTitle(topic) {
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4-turbo",
+    messages: [{
+      role: "user",
+      content: `Generate 3 clickbait blog titles about "${topic}". Use:\n- Numbers\n- Power words\n- Questions`
+    }]
+  });
+  return completion.choices[0].message.content.split('\n')[0]; // Pick first title
+}
+
+module.exports = { generateViralTitle };
+```
+
+---
+
+### **4. Create Featured Image**
+#### **Using DALL·E 3**
+```javascript
+// utils/images.js
+const OpenAI = require('openai');
+const fs = require('fs');
+const axios = require('axios');
+const openai = new OpenAI(process.env.OPENAI_KEY);
+
+async function generateFeaturedImage(title) {
+  // Generate image
+  const response = await openai.images.generate({
+    model: "dall-e-3",
+    prompt: `A modern blog header image for "${title}". Minimalist style with bold typography.`,
+    size: "1024x1024",
+  });
+
+  // Download locally
+  const imageUrl = response.data[0].url;
+  const imagePath = `./images/${Date.now()}.png`;
+  const writer = fs.createWriteStream(imagePath);
+  
+  const imageResponse = await axios({
+    url: imageUrl,
+    method: 'GET',
+    responseType: 'stream'
+  });
+
+  imageResponse.data.pipe(writer);
+  
+  return new Promise((resolve) => {
+    writer.on('finish', () => resolve(imagePath));
+  });
+}
+
+module.exports = { generateFeaturedImage };
+```
+
+---
+
+### **5. Research & Scrape Facts**
+#### **Wikipedia + Reddit**
+```javascript
+// utils/research.js
+const axios = require('axios');
+const puppeteer = require('puppeteer');
+
+async function getWikiSummary(topic) {
+  const response = await axios.get(
+    `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(topic)}`
+  );
+  return response.data.extract;
+}
+
+async function scrapeRedditComments(topic) {
+  const browser = await puppeteer.launch({ headless: "new" });
+  const page = await browser.newPage();
+  
+  await page.goto(`https://www.reddit.com/search/?q=${encodeURIComponent(topic)}`);
+  await page.waitForSelector('div[data-testid="post-container"]');
+  
+  const comments = await page.evaluate(() => 
+    Array.from(document.querySelectorAll('div[data-testid="comment"]'))
+      .map(el => el.textContent.slice(0, 200))
+  
+  await browser.close();
+  return comments;
+}
+
+module.exports = { getWikiSummary, scrapeRedditComments };
+```
+
+---
+
+### **6. Generate Human-Like Article**
+#### **Using Claude 3**
+```javascript
+// utils/content.js
+const Anthropic = require('@anthropic-ai/sdk');
+const anthropic = new Anthropic(process.env.ANTHROPIC_KEY);
+
+async function generateArticle(topic, facts, comments) {
+  const message = await anthropic.messages.create({
+    model: "claude-3-sonnet-20240229",
+    max_tokens: 2000,
+    system: "Write in a conversational tone with 1-2 grammatical errors per paragraph to sound human.",
+    messages: [{
+      role: "user",
+      content: `Write a 1200-word blog post about "${topic}" using these facts: ${facts}. 
+                Incorporate these Reddit opinions: ${comments.join(' | ')}`
+    }]
+  });
+  return message.content[0].text;
+}
+
+module.exports = { generateArticle };
+```
+
+---
+
+### **7. Publish to WordPress**
+```javascript
+// utils/publisher.js
+const axios = require('axios');
+const FormData = require('form-data');
+const fs = require('fs');
+
+async function uploadMedia(imagePath) {
+  const form = new FormData();
+  form.append('file', fs.createReadStream(imagePath));
+  
+  const response = await axios.post(
+    'https://yourblog.com/wp-json/wp/v2/media',
+    form,
+    {
+      headers: {
+        ...form.getHeaders(),
+        'Authorization': 'Bearer YOUR_WP_TOKEN'
+      }
+    }
+  );
+  return response.data.id;
+}
+
+async function publishPost(title, content, imageId) {
+  await axios.post('https://yourblog.com/wp-json/wp/v2/posts', {
+    title,
+    content,
+    status: 'publish',
+    featured_media: imageId
+  }, {
+    headers: { 'Authorization': 'Bearer YOUR_WP_TOKEN' }
+  });
+}
+
+module.exports = { uploadMedia, publishPost };
+```
+
+---
+
+### **8. Main Workflow**
+```javascript
+// index.js
+const cron = require('cron');
+const { getTrendingTopics } = require('./utils/trends');
+const { generateViralTitle } = require('./utils/titles');
+const { generateFeaturedImage } = require('./utils/images');
+const { getWikiSummary, scrapeRedditComments } = require('./utils/research');
+const { generateArticle } = require('./utils/content');
+const { uploadMedia, publishPost } = require('./utils/publisher');
+
+async function dailyPost() {
+  try {
+    // Step 1: Get trending topic
+    const [topic] = await getTrendingTopics();
+    
+    // Step 2: Generate title
+    const title = await generateViralTitle(topic);
+    
+    // Step 3: Create image
+    const imagePath = await generateFeaturedImage(title);
+    
+    // Step 4: Research
+    const [facts, comments] = await Promise.all([
+      getWikiSummary(topic),
+      scrapeRedditComments(topic)
+    ]);
+    
+    // Step 5: Write article
+    const content = await generateArticle(topic, facts, comments);
+    
+    // Step 6: Publish
+    const imageId = await uploadMedia(imagePath);
+    await publishPost(title, content, imageId);
+    
+    console.log('Published:', title);
+  } catch (error) {
+    console.error('Error:', error.message);
+  }
+}
+
+// Run daily at 9 AM
+new cron.CronJob('0 9 * * *', dailyPost).start();
+```
+
+---
+
+### **9. Environment Variables**
+```env
+# .env
+OPENAI_KEY=your_openai_key
+ANTHROPIC_KEY=your_claude_key
+NEWSAPI_KEY=your_newsapi_key
+WP_TOKEN=your_wp_rest_token
+```
+
+---
+
+### **10. Run the Bot**
+```bash
+node index.js
+```
+
+---
+
+### **Key Features**
+1. **100% Automated** - Runs daily via cron
+2. **Anti-Detection** - Claude 3 + intentional errors
+3. **Visual Appeal** - DALL·E 3 generated images
+4. **SEO Optimized** - Viral titles + proper WP integration
+
+---
+
+### **Error Handling Add-Ons**
+```javascript
+// Add to dailyPost()
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled rejection:', err);
+  // Send alert via Discord webhook
+  axios.post('DISCORD_WEBHOOK', { content: `Auto-blogger failed: ${err.message}` });
+});
+```
+
+Need the **complete GitHub repository** with Docker setup? Let me know! 🚀
