@@ -1,0 +1,19 @@
+name: Auto-Post Bot
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Runs every 30 minutes
+  workflow_dispatch:         # Allow manual triggers
+jobs:
+  autopost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install
+      - name: Run Auto-Post Script
+        run: npm start       # Uses the "start" script from package.json
+        # Alternative: `node code-utils/index.js`
