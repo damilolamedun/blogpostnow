@@ -1,6 +1,6 @@
 // utils/titles.js
 
-const apiKey = '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'; // Get this from https://openrouter.ai
+const apiKey = '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'; // Get this from https://openrouter.ai
  
 async function  generatecategory(topic) {
 
