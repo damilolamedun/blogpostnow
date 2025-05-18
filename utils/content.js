@@ -1,6 +1,6 @@
 // utils/content.js
 
-const apiKey = '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'; // Get this from https://openrouter.ai
+const apiKey = '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'; // Get this from https://openrouter.ai
 
 async function generateArticle(topic, facts) {
 
