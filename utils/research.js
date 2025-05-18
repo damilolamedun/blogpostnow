@@ -2,7 +2,7 @@
 
 //generate best image title
 
-const apiKeyy = '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'; // Get this from https://openrouter.ai
+const apiKeyy = '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'; // Get this from https://openrouter.ai
 
 
 async function getArticleSummary(contents) {
